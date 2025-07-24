@@ -1,0 +1,274 @@
+/* FlowChart Component Styles */
+
+.flowchart-container {
+  width: 100%;
+  height: 100%;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Table Node Styles */
+.table-node {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  transition: all 0.2s ease;
+  border: 2px solid #3b82f6;
+  min-width: 200px;
+  font-size: 13px;
+}
+
+.table-node .column-name {
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 12px;
+  color: #1f2937;
+}
+
+.table-node .column-type {
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 11px;
+  color: #6b7280;
+  margin-left: 8px;
+}
+
+.table-node.selected {
+  box-shadow: 0 0 0 2px #3b82f6, 0 0 10px rgba(59, 130, 246, 0.3);
+  border-color: #3b82f6;
+}
+
+.table-header {
+  padding: 8px 12px;
+  background-color: #3b82f6;
+  color: white;
+  font-weight: 600;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.table-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+}
+
+.table-columns {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.table-column {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  padding: 4px 12px;
+  padding: 6px 12px;
+  font-size: 13px;
+  border-bottom: 1px solid #f3f4f6;
+  position: relative;
+  transition: background-color 0.15s ease;
+}
+
+.table-column:last-child {
+  border-bottom: none;
+}
+
+.table-column:hover {
+  background-color: #f9fafb;
+}
+
+.column-name {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #111827;
+  font-weight: 500;
+  margin-right: 8px;
+}
+
+.column-type {
+  color: #6b7280;
+  font-size: 12px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  background-color: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+.column-constraints {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.constraint-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: white;
+  text-transform: uppercase;
+}
+
+.constraint-badge.pk {
+  background-color: #10b981;
+}
+
+.constraint-badge.fk {
+  background-color: #2563eb;
+  position: relative;
+  z-index: 1;
+}
+
+.constraint-badge.unique {
+  background-color: #8b5cf6;
+}
+
+.constraint-badge.not-null {
+  background-color: #f59e0b;
+}
+
+/* Special column highlighting */
+.pk-column {
+  background-color: rgba(16, 185, 129, 0.1);
+  border-left: 3px solid #10b981;
+}
+
+.fk-column {
+  background-color: rgba(37, 99, 235, 0.1);
+  border-left: 3px solid #2563eb;
+}
+
+.table-column.foreign-key {
+  background-color: rgba(37, 99, 235, 0.1);
+  border-left: 3px solid #2563eb;
+  position: relative;
+}
+
+.connector-dot {
+  position: absolute;
+  right: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  background-color: #2563eb;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+  z-index: 10;
+}
+
+/* Save button */
+.save-button {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.save-button:hover {
+  background-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.save-button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* React Flow overrides */
+.react-flow__handle {
+  width: 10px;
+  height: 10px;
+  background-color: #2563eb;
+  border: 2px solid white;
+  box-shadow: 0 0 4px rgba(37, 99, 235, 0.4);
+  z-index: 10;
+}
+
+/* Make sure edges are visible */
+.react-flow__edge {
+  z-index: 5;
+  pointer-events: all;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #2563eb;
+  stroke-width: 2.5;
+  fill: none;
+  filter: drop-shadow(0 1px 2px rgba(37, 99, 235, 0.3));
+}
+
+.react-flow__handle-top {
+  top: -6px;
+}
+
+.react-flow__handle-bottom {
+  bottom: -6px;
+}
+
+.react-flow__controls {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: white;
+  color: #4b5563;
+  border-bottom: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
+}
+
+.react-flow__controls-button:hover {
+  background-color: #f3f4f6;
+}
+
+.react-flow__controls-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .table-node {
+    transform: scale(0.9);
+    transform-origin: top left;
+  }
+  
+  .column-constraints {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+/* Message for when no data is available */
+.no-data-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  color: #6b7280;
+  font-size: 16px;
+  text-align: center;
+  padding: 20px;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  border: 1px dashed #d1d5db;
+}

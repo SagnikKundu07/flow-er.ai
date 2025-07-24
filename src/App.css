@@ -1,0 +1,92 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.app-header {
+  background-color: #282c34;
+  padding: 1rem;
+  color: white;
+  text-align: center;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  background-color: #f5f5f5;
+}
+
+.editor-container, .flowchart-container {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.editor-container {
+  width: 40%;
+  border-right: 1px solid #ddd;
+  background-color: white;
+}
+
+.flowchart-container {
+  width: 60%;
+  background-color: #f9f9f9;
+}
+
+h2 {
+  margin: 0 0 1rem 0;
+  color: #333;
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+/* React Flow overrides */
+.react-flow__node {
+  border: 1px solid #555;
+  border-radius: 4px;
+  background-color: white;
+  padding: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.react-flow__edge-path {
+  stroke: #555;
+  stroke-width: 2;
+}
+
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background-color: #555;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
