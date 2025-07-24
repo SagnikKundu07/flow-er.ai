@@ -260,15 +260,78 @@
 /* Message for when no data is available */
 .no-data-message {
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   height: 100%;
-  width: 100%;
-  color: #6b7280;
-  font-size: 16px;
+  font-size: 1.2rem;
+  color: #666;
   text-align: center;
-  padding: 20px;
+  padding: 2rem;
   background-color: #f9fafb;
   border-radius: 8px;
-  border: 1px dashed #d1d5db;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Connection mode button */
+.connection-mode-button {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-bottom: 10px;
+}
+
+.connection-mode-button:hover {
+  background-color: #1d4ed8;
+}
+
+.connection-mode-button.active {
+  background-color: #dc2626;
+}
+
+.connection-mode-button.active:hover {
+  background-color: #b91c1c;
+}
+
+/* Connection instructions */
+.connection-instructions {
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #333;
+  max-width: 300px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 10px;
+}
+
+.connection-instructions p {
+  margin: 0 0 8px 0;
+}
+
+/* Suggested connections */
+.suggested-connections {
+  margin-top: 10px;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 8px;
+}
+
+.suggested-connections h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: #2563eb;
+}
+
+.suggested-connections ul {
+  margin: 0;
+  padding-left: 15px;
+  font-size: 11px;
+}
+
+.suggested-connections li {
+  margin-bottom: 4px;
 }
