@@ -1,17 +1,17 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { ReactFlowProvider } from 'reactflow';
-import 'reactflow/dist/style.css';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import ErrorHandler from './errorHandler';
+
+// Initialize error handler
+ErrorHandler.init();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <ReactFlowProvider>
-      <App />
-    </ReactFlowProvider>
+    <App />
   </React.StrictMode>
 );
 

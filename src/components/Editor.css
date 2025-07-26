@@ -1,0 +1,68 @@
+.editor-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+
+.editor-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  background-color: #2d2d2d;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.editor-title {
+  color: #e0e0e0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* AceEditor overrides */
+.ace_editor {
+  font-family: 'Fira Code', monospace !important;
+  line-height: 1.5;
+}
+
+.ace_gutter {
+  background-color: #2d2d2d !important;
+  color: #8e8e8e !important;
+}
+
+.ace_content {
+  background-color: #1e1e1e !important;
+}
+
+.ace_cursor {
+  color: #f8f8f8 !important;
+}
+
+.ace_active-line {
+  background-color: #303030 !important;
+}
+
+/* Syntax highlighting */
+.ace_keyword {
+  color: #ff79c6 !important;
+}
+
+.ace_string {
+  color: #f1fa8c !important;
+}
+
+.ace_numeric {
+  color: #bd93f9 !important;
+}
+
+.ace_function {
+  color: #50fa7b !important;
+}
+
+.ace_comment {
+  color: #6272a4 !important;
+}

@@ -1,14 +1,14 @@
-import React, { useCallback, useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import ReactFlow, {
+  useNodesState,
+  useEdgesState,
+  addEdge,
   Background,
   Controls,
   Panel,
   MarkerType,
-  useNodesState,
-  useEdgesState,
-  Handle,
-  addEdge,
   ConnectionLineType,
+  Handle
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import './FlowChart.css';
@@ -50,7 +50,7 @@ const TableNode = ({ data }) => {
   );
 };
 
-const FlowChart = ({ tables, relationships }) => {
+const FlowChart = ({ tables, relationships, connectorsMode }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [manualMode, setManualMode] = useState(false);
@@ -331,20 +331,19 @@ const FlowChart = ({ tables, relationships }) => {
     return newConnections;
   }, [tables, edges, setEdges]);
   
-  // Toggle manual connection mode
-  const toggleManualMode = () => {
-    const newMode = !manualMode;
-    setManualMode(newMode);
+  // Update manual mode when connectorsMode prop changes
+  useEffect(() => {
+    setManualMode(connectorsMode);
     
     // Find potential connections when entering manual mode
-    if (newMode) {
+    if (connectorsMode) {
       const potential = findAndCreateConnections();
       setSuggestedConnections(potential);
       console.log('Potential connections:', potential);
     } else {
       setSuggestedConnections([]);
     }
-  };
+  }, [connectorsMode, findAndCreateConnections]);
   
   // Handle edge selection
   const onEdgeClick = useCallback((event, edge) => {
@@ -378,7 +377,7 @@ const FlowChart = ({ tables, relationships }) => {
   }, [onKeyDown]);
 
   return (
-    <div style={{ width: '100%', height: '600px' }}>
+    <div style={{ width: '100%', height: '100%' }}>
       {tables.length === 0 ? (
         <div className="no-data-message">No tables to display. Click Generate to create a flowchart.</div>
       ) : nodes.length === 0 ? (
@@ -415,17 +414,10 @@ const FlowChart = ({ tables, relationships }) => {
           connectionLineType={ConnectionLineType.SmoothStep}
           connectOnClick={manualMode}
         >
-          <Background />
+          <Background variant="dots" gap={20} size={1} color="#e5e7eb" />
           <Controls />
-          <Panel position="top-right">
-            <button 
-              onClick={toggleManualMode} 
-              className={`connection-mode-button ${manualMode ? 'active' : ''}`}
-              title={manualMode ? "Click to exit connection mode" : "Click to enter connection mode"}
-            >
-              {manualMode ? "Exit Connection Mode" : "Create Connections"}
-            </button>
-            {manualMode && (
+          {manualMode && (
+            <Panel position="top-right">
               <div className="connection-instructions">
                 <p>Click on a source node handle, then click on a target node handle to create a connection.</p>
                 <p>To delete a connection: Click on it to select (turns red), then press Delete or Backspace.</p>
@@ -442,8 +434,8 @@ const FlowChart = ({ tables, relationships }) => {
                   </div>
                 )}
               </div>
-            )}
-          </Panel>
+            </Panel>
+          )}
         </ReactFlow>
       )}
     </div>

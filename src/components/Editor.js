@@ -1,31 +1,39 @@
-import React, { useCallback } from 'react';
-import CodeMirror from '@uiw/react-codemirror';
-import { sql } from '@codemirror/lang-sql';
-import { materialDark } from '@uiw/codemirror-theme-material';
+import React from 'react';
+import AceEditor from 'react-ace';
+import './Editor.css';
 
-const Editor = ({ value, onChange }) => {
-  const handleChange = useCallback((val) => {
-    onChange(val);
-  }, [onChange]);
+// Import ace modes and themes
+import 'ace-builds/src-noconflict/mode-sql';
+import 'ace-builds/src-noconflict/theme-monokai';
+import 'ace-builds/src-noconflict/ext-language_tools';
 
+const Editor = ({ sql, onSqlChange }) => {
   return (
     <div className="editor-wrapper">
-      <CodeMirror
-        value={value}
-        height="100%"
-        theme={materialDark}
-        extensions={[sql()]}
-        onChange={handleChange}
-        basicSetup={{
-          lineNumbers: true,
-          highlightActiveLineGutter: true,
-          bracketMatching: true,
-          closeBrackets: true,
+      <div className="editor-header">
+        <span className="editor-title">Query Editor</span>
+      </div>
+      <AceEditor
+        mode="sql"
+        theme="monokai"
+        value={sql}
+        onChange={onSqlChange}
+        name="sql-editor"
+        editorProps={{ $blockScrolling: true }}
+        setOptions={{
+          enableBasicAutocompletion: true,
+          enableLiveAutocompletion: true,
+          enableSnippets: true,
+          showLineNumbers: true,
+          showGutter: true,
+          highlightActiveLine: true,
           tabSize: 2,
-          indentOnInput: true,
-          syntaxHighlighting: true,
-          foldGutter: true,
         }}
+        width="100%"
+        height="calc(100% - 40px)"
+        fontSize={14}
+        showPrintMargin={false}
+        placeholder="Start typing to get started.."
       />
     </div>
   );
