@@ -11,7 +11,7 @@ const Editor = ({ sql, onSqlChange }) => {
   return (
     <div className="editor-wrapper">
       <div className="editor-header">
-        <span className="editor-title">Query Editor</span>
+        {/* Removed Query Editor text as requested */}
       </div>
       <AceEditor
         mode="sql"

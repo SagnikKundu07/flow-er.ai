@@ -1,0 +1,165 @@
+.landing-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f9fafb;
+  background-image: url('../img/flower-landing-bg.png');
+  background-size: 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  padding: 2rem;
+}
+
+.landing-content {
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-header {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin-bottom: 3rem;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logo-icon {
+  font-size: 1.5rem;
+}
+
+.logo-text {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #2563eb;
+  transform: translateY(-120px);
+  cursor: pointer;
+}
+
+.landing-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.landing-text {
+  flex: 1;
+  max-width: 500px;
+}
+
+.landing-text h1 {
+  font-size: 3.5rem;
+  font-weight: 700;
+  color: #333;
+  line-height: 1.2;
+  margin-bottom: 2rem;
+}
+
+.highlight {
+  color: #2563eb;
+}
+
+.landing-buttons {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.feature-button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 2rem;
+  background-color: white;
+  color: #77748b;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.feature-button:hover:not(.disabled) {
+  color: #2563eb;
+  border-color: #2563eb;
+}
+
+.feature-button.disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
+.get-started-button {
+  padding: 0.75rem 2rem;
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.get-started-button:hover {
+  background-color: #1d4ed8;
+}
+
+.learn-more-button {
+  padding: 0.75rem 2rem;
+  background-color: white;
+  color: #333;
+  border: 1px solid #e5e7eb;
+  border-radius: 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.learn-more-button:hover {
+  border-color: #d1d5db;
+  background-color: #f9fafb;
+}
+
+.landing-image {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.landing-image img {
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 768px) {
+  .landing-main {
+    flex-direction: column;
+  }
+  
+  .landing-text {
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+  
+  .landing-buttons, .action-buttons {
+    justify-content: center;
+  }
+  
+  .landing-image {
+    justify-content: center;
+  }
+}

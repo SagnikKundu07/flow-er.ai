@@ -43,13 +43,13 @@
   padding: 8px 12px;
   background-color: #3b82f6;
   color: white;
-  font-weight: 600;
+  font-weight: 400;
   border-bottom: 1px solid #e5e7eb;
 }
 
 .table-name {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   color: white;
 }
 

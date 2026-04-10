@@ -1,0 +1,269 @@
+import React, { useState, useCallback } from 'react';
+import { ReactFlowProvider } from 'reactflow';
+import { FiPlay, FiUndo, FiRedo } from 'react-icons/fi';
+import { BsDiagram3 } from "react-icons/bs";
+import 'reactflow/dist/style.css';
+import './App.css';
+import Editor from './components/Editor';
+import FlowChart from './components/FlowChart';
+import ImportWizard from './components/ImportWizard';
+import SelectionPage from './components/SelectionPage';
+import TableValidator from './components/TableValidator';
+import Landing from './components/Landing';
+import { parseSQLToMermaid } from './utils/sqlParser';
+
+function App() {
+  const [sql, setSql] = useState('');
+  const [originalMetadata, setOriginalMetadata] = useState('');
+  // We're storing generatedDDL but not using it directly in App.js
+  // It's used for state persistence when navigating back to TableValidator
+  const [, setGeneratedDDL] = useState('');
+  const [tables, setTables] = useState([]);
+  const [relationships, setRelationships] = useState([]);
+  const [showEditor, setShowEditor] = useState(true);
+  const [connectorsMode, setConnectorsMode] = useState(false);
+  const [showLanding, setShowLanding] = useState(true);
+  const [showImportWizard, setShowImportWizard] = useState(false);
+  const [showSelectionPage, setShowSelectionPage] = useState(false);
+  const [showTableValidator, setShowTableValidator] = useState(false);
+  const [showFlowchart, setShowFlowchart] = useState(false);
+  // We need to track the database type but don't directly use it in this component
+  // It's passed to child components that need it
+  const [, setDbType] = useState('mysql');
+  const [erdError, setErdError] = useState(null);
+  
+  // Undo/Redo history state
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  const handleSqlChange = (newSql) => {
+    setSql(newSql);
+  };
+
+  // Handle undo/redo functionality
+  const addToHistory = useCallback((newTables, newRelationships) => {
+    // Add current state to history
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push({ tables: [...newTables], relationships: [...newRelationships] });
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  }, [history, historyIndex]);
+
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      const { tables: prevTables, relationships: prevRelationships } = history[newIndex];
+      setTables(prevTables);
+      setRelationships(prevRelationships);
+      setHistoryIndex(newIndex);
+    }
+  }, [history, historyIndex]);
+
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      const { tables: nextTables, relationships: nextRelationships } = history[newIndex];
+      setTables(nextTables);
+      setRelationships(nextRelationships);
+      setHistoryIndex(newIndex);
+    }
+  }, [history, historyIndex]);
+
+  const handleGenerate = () => {
+    try {
+      // Ensure we have valid SQL before parsing
+      if (!sql || sql.trim() === '') {
+        setErdError('No SQL provided for ERD generation');
+        return;
+      }
+      
+      // Clean up SQL to prevent parsing errors
+      const cleanedSql = sql
+        .replace(/\[/g, '') // Remove square brackets
+        .replace(/\]/g, '') // Remove square brackets
+        .replace(/--.*$/gm, '') // Remove comments
+        .trim();
+      
+      const { tables: parsedTables, relationships } = parseSQLToMermaid(cleanedSql);
+      setTables(parsedTables);
+      setRelationships(relationships);
+      
+      // Add to history for undo/redo
+      addToHistory(parsedTables, relationships);
+      
+      setErdError(null);
+    } catch (error) {
+      console.error('Error parsing SQL:', error);
+      setErdError(`Error generating ERD: ${error.message || 'Invalid SQL syntax'}`);
+    }
+  };
+
+  const handleImportComplete = (importedSql, selectedDbType) => {
+    setSql(importedSql);
+    setOriginalMetadata(importedSql); // Store the original metadata
+    setDbType(selectedDbType);
+    setShowImportWizard(false);
+    setShowSelectionPage(true);
+  };
+
+  const handleSelectOption = (option) => {
+    setShowSelectionPage(false);
+    
+    if (option === 'validator') {
+      setShowTableValidator(true);
+      setShowFlowchart(false);
+    } else if (option === 'generator') {
+      setShowTableValidator(false);
+      setShowFlowchart(true);
+      setShowEditor(true);
+    }
+  };
+  
+  const handleBackFromValidator = () => {
+    setShowTableValidator(false);
+    setShowSelectionPage(true);
+    // Keep the original metadata and generated DDL in memory
+  };
+
+  const handleGenerateERDFromValidator = (ddlSql) => {
+    // Format the DDL to ensure it's compatible with the parser
+    const formattedDDL = ddlSql
+      .replace(/\[/g, '') // Remove square brackets
+      .replace(/\]/g, '') // Remove square brackets
+      .replace(/--.*$/gm, '') // Remove comments
+      .replace(/\n\s*\n+/g, '\n\n') // Normalize empty lines
+      .trim(); // Remove leading/trailing whitespace
+    
+    // Ensure we have clean CREATE TABLE statements
+    const cleanedDDL = formattedDDL
+      .split('\n\n')
+      .filter(stmt => stmt.trim().startsWith('CREATE TABLE'))
+      .join('\n\n');
+    
+    setSql(cleanedDDL);
+    setGeneratedDDL(ddlSql); // Store the original DDL for persistence
+    setShowTableValidator(false);
+    setShowFlowchart(true);
+    setShowEditor(true);
+    setErdError(null);
+    
+    // Generate the ERD after a short delay to ensure the SQL is set
+    setTimeout(() => {
+      try {
+        handleGenerate();
+      } catch (err) {
+        console.error('ERD generation error:', err);
+        setErdError('Could not generate ERD. Please check your DDL.');
+      }
+    }, 100);
+  };
+
+  const handleBackFromFlowchart = () => {
+    setShowFlowchart(false);
+    setShowTableValidator(true);
+    setErdError(null);
+    // Restore the original metadata for the validator
+    // but keep the generated DDL in memory
+    setSql(originalMetadata);
+  };
+
+  const handleGetStarted = () => {
+    setShowLanding(false);
+    setShowImportWizard(true);
+  };
+
+  return (
+    <div className="App">
+      {showLanding && (
+        <Landing onGetStarted={handleGetStarted} />
+      )}
+      
+      {showImportWizard && (
+        <ImportWizard onImportComplete={handleImportComplete} />
+      )}
+      
+      {showSelectionPage && (
+        <SelectionPage onSelectOption={handleSelectOption} />
+      )}
+      
+      {showTableValidator && (
+        <TableValidator 
+          onBack={handleBackFromValidator} 
+          metadataContent={sql}
+          onGenerateERD={handleGenerateERDFromValidator}
+        />
+      )}
+      
+      {showFlowchart && (
+        <div className="flowchart-container">
+          <div className="toolbar">
+            <div className="toolbar-left">
+              <button className="toolbar-button" onClick={handleBackFromFlowchart} title="Back to Table Validator">
+                ← Back
+              </button>
+            </div>
+            <div className="toolbar-center">
+              <h2>Entity Relationship Diagram</h2>
+            </div>
+            <div className="toolbar-right">
+              <button 
+                className="toolbar-button" 
+                onClick={handleUndo} 
+                title="Undo" 
+                disabled={historyIndex <= 0}
+              >
+                <FiUndo />
+              </button>
+              <button 
+                className="toolbar-button" 
+                onClick={handleRedo} 
+                title="Redo" 
+                disabled={historyIndex >= history.length - 1}
+              >
+                <FiRedo />
+              </button>
+              <button 
+                className="toolbar-button" 
+                onClick={() => setConnectorsMode(!connectorsMode)} 
+                title="Toggle connectors mode"
+              >
+                <BsDiagram3 />
+              </button>
+            </div>
+          </div>
+
+          {erdError ? (
+            <div className="error-message">
+              <p>{erdError}</p>
+            </div>
+          ) : (
+            <div className="editor-flowchart-container">
+              {showEditor && (
+                <div className="editor-container">
+                  <div className="editor-header">
+                    <h3 className="editor-title">Query Editor</h3>
+                    <div className="editor-actions">
+                      <button className="editor-button" onClick={handleGenerate} title="Generate diagram">
+                        <FiPlay />
+                      </button>
+                    </div>
+                  </div>
+                  <Editor sql={sql} onChange={handleSqlChange} />
+                </div>
+              )}
+              <ReactFlowProvider>
+                <FlowChart 
+                  tables={tables} 
+                  relationships={relationships} 
+                  connectorsMode={connectorsMode} 
+                />
+              </ReactFlowProvider>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default App;

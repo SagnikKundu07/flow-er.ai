@@ -50,7 +50,7 @@ const TableNode = ({ data }) => {
   );
 };
 
-const FlowChart = ({ tables, relationships, connectorsMode }) => {
+const FlowChart = ({ tables, relationships, connectorsMode, onStateChange }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [manualMode, setManualMode] = useState(false);
@@ -63,6 +63,11 @@ const FlowChart = ({ tables, relationships, connectorsMode }) => {
     table: TableNode
   }), []);
 
+  // Initialize the component when mounted
+  useEffect(() => {
+    console.log('Initializing FlowChart component');
+  }, []); 
+
   // Create nodes from tables
   useEffect(() => {
     console.log('Creating nodes from tables:', tables);
@@ -72,40 +77,40 @@ const FlowChart = ({ tables, relationships, connectorsMode }) => {
       return;
     }
     
-    // Only update nodes if this is the first render or if tables have changed
-    if (!initialized) {
-      // Preserve existing node positions when updating
-      const existingNodes = {};
-      nodes.forEach(node => {
-        existingNodes[node.id] = node.position;
-      });
+    // Always update nodes when tables change
+    // Preserve existing node positions when updating
+    const existingNodes = {};
+    nodes.forEach(node => {
+      existingNodes[node.id] = node.position;
+    });
+    
+    const newNodes = tables.map((table, index) => {
+      // Use existing position if available, otherwise create new position
+      let position;
+      if (existingNodes[table.name]) {
+        position = existingNodes[table.name];
+      } else {
+        const x = (index % 3) * 300 + 50; // 3 columns layout
+        const y = Math.floor(index / 3) * 400 + 50; // 400px vertical spacing
+        position = { x, y };
+      }
       
-      const newNodes = tables.map((table, index) => {
-        // Use existing position if available, otherwise create new position
-        let position;
-        if (existingNodes[table.name]) {
-          position = existingNodes[table.name];
-        } else {
-          const x = (index % 3) * 300 + 50; // 3 columns layout
-          const y = Math.floor(index / 3) * 400 + 50; // 400px vertical spacing
-          position = { x, y };
-        }
-        
-        return {
-          id: table.name,
-          type: 'table',
-          data: { label: table.name, columns: table.columns || [] },
-          position: position,
-          // Make nodes draggable
-          draggable: true
-        };
-      });
-      
-      console.log('Setting nodes:', newNodes);
-      setNodes(newNodes);
-    }
+      return {
+        id: table.name,
+        type: 'table',
+        data: { label: table.name, columns: table.columns || [] },
+        position: position,
+        // Make nodes draggable
+        draggable: true
+      };
+    });
+    
+    console.log('Setting nodes:', newNodes);
+    setNodes(newNodes);
+    setInitialized(true);
+  // Removing nodes from dependency array to prevent infinite re-renders
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tables, initialized]);
+  }, [tables]);
 
   // Create edges from relationships
   useEffect(() => {
@@ -113,6 +118,11 @@ const FlowChart = ({ tables, relationships, connectorsMode }) => {
     
     if (!relationships || relationships.length === 0 || !nodes || nodes.length === 0) {
       // Don't clear edges, just return to preserve manually created edges
+      return;
+    }
+    
+    // Only proceed if component is initialized
+    if (!initialized) {
       return;
     }
     
@@ -230,8 +240,20 @@ const FlowChart = ({ tables, relationships, connectorsMode }) => {
         !(conn.sourceTable === params.target && conn.targetTable === params.source)
       )
     );
-  }, [nodes, setEdges, tables]);
-  
+    
+    // Notify parent component about state change for undo/redo
+    if (onStateChange) {
+      // Create updated relationships based on the new edge
+      const newRelationship = {
+        source: params.source,
+        target: params.target,
+        label: newEdge.label || ''
+      };
+      const updatedRelationships = [...relationships, newRelationship];
+      onStateChange(tables, updatedRelationships);
+    }
+  }, [nodes, tables, relationships, onStateChange, setEdges]);
+
   // Find and create connections based on common column names
   const findAndCreateConnections = useCallback(() => {
     if (!tables || tables.length < 2) return [];
@@ -330,7 +352,7 @@ const FlowChart = ({ tables, relationships, connectorsMode }) => {
     
     return newConnections;
   }, [tables, edges, setEdges]);
-  
+
   // Update manual mode when connectorsMode prop changes
   useEffect(() => {
     setManualMode(connectorsMode);
@@ -344,7 +366,24 @@ const FlowChart = ({ tables, relationships, connectorsMode }) => {
       setSuggestedConnections([]);
     }
   }, [connectorsMode, findAndCreateConnections]);
-  
+
+  // Handle edge removal
+  const onEdgesDelete = useCallback((edgesToDelete) => {
+    console.log('Deleting edges:', edgesToDelete);
+    setSelectedEdges([]);
+    
+    // Notify parent component about state change for undo/redo
+    if (onStateChange && edgesToDelete.length > 0) {
+      // Filter out deleted relationships
+      const deletedIds = edgesToDelete.map(edge => edge.id);
+      const updatedRelationships = relationships.filter(rel => {
+        const edgeId = `${rel.source}-${rel.target}`;
+        return !deletedIds.includes(edgeId);
+      });
+      onStateChange(tables, updatedRelationships);
+    }
+  }, [tables, relationships, onStateChange]);
+
   // Handle edge selection
   const onEdgeClick = useCallback((event, edge) => {
     if (!manualMode) return;
@@ -398,6 +437,14 @@ const FlowChart = ({ tables, relationships, connectorsMode }) => {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onEdgeClick={onEdgeClick}
+          onEdgesDelete={onEdgesDelete}
+          onNodeDragStop={(event, node) => {
+            console.log('Node moved:', node);
+            // Notify parent component about state change for undo/redo
+            if (onStateChange) {
+              setTimeout(() => onStateChange(tables, relationships), 0);
+            }
+          }}
           nodeTypes={nodeTypes}
           fitView
           defaultEdgeOptions={{

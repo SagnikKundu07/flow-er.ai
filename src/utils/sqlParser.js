@@ -12,15 +12,20 @@ const parseCreateTable = (sql) => {
   const tableMap = {}; // For quick lookups
   
   try {
-    // First pass: Extract all tables
-    const tableRegex = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"']?([^\s`"'(,)]+)[`"']?\s*\(([\s\S]*?)\)\s*;?/gi;
+    // First pass: Extract all tables - support for fully qualified Snowflake names (DB.SCHEMA.TABLE)
+    const tableRegex = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"']?([^\s`"'(,)]+(?:\.[^\s`"'(,)]+){0,2})[`"']?\s*\(([\s\S]*?)\)\s*;?/gi;
     let match;
     
     console.log('SQL to parse:', sql);
     
     // First pass: Extract all tables
     while ((match = tableRegex.exec(sql)) !== null) {
-      const tableName = match[1].trim();
+      // Extract the simple table name from fully qualified name (DB.SCHEMA.TABLE)
+      const fullTableName = match[1].trim();
+      const tableParts = fullTableName.split('.');
+      const tableName = tableParts[tableParts.length - 1]; // Use the last part as the table name
+      const schemaName = tableParts.length > 1 ? tableParts[tableParts.length - 2] : '';
+      const dbName = tableParts.length > 2 ? tableParts[0] : '';
       const tableBody = match[2];
       
       console.log(`Found table: ${tableName}`);
@@ -29,6 +34,9 @@ const parseCreateTable = (sql) => {
       // Store table info for second pass
       tableMap[tableName] = {
         name: tableName,
+        fullName: fullTableName,
+        schema: schemaName,
+        database: dbName,
         body: tableBody,
         columns: [],
         primaryKeys: [],
@@ -49,18 +57,52 @@ const parseCreateTable = (sql) => {
       const primaryKeys = [];
       const foreignKeys = [];
       
-      // Split the table body into lines
-      const lines = tableBody.split(',').map(line => line.trim());
+      // Extract columns using a more robust approach
+      // Split the table body into column definitions
+      const columnDefinitions = [];
+      let depth = 0;
+      let currentDef = '';
       
-      // Process each line
-      for (const line of lines) {
-        // Skip empty lines
-        if (!line) continue;
+      // Process each character to properly split on commas outside of parentheses
+      for (let i = 0; i < tableBody.length; i++) {
+        const char = tableBody[i];
         
-        console.log(`Processing line: ${line}`);
+        if (char === '(') {
+          depth++;
+          currentDef += char;
+        } else if (char === ')') {
+          depth--;
+          currentDef += char;
+        } else if (char === ',' && depth === 0) {
+          // Only split on commas outside of parentheses
+          if (currentDef.trim()) {
+            columnDefinitions.push(currentDef.trim());
+          }
+          currentDef = '';
+        } else {
+          currentDef += char;
+        }
+      }
+      
+      // Add the last definition if not empty
+      if (currentDef.trim()) {
+        columnDefinitions.push(currentDef.trim());
+      }
+      
+      console.log(`Found ${columnDefinitions.length} column definitions in ${tableName}`);
+      columnDefinitions.forEach((def, idx) => {
+        console.log(`Column definition ${idx + 1}: ${def}`);
+      });
+      
+      // Process each column definition
+      for (const definition of columnDefinitions) {
+        // Skip empty definitions
+        if (!definition) continue;
+        
+        console.log(`Processing definition: ${definition}`);
         
         // Check if this is a primary key constraint
-        const pkMatch = line.match(/PRIMARY\s+KEY\s*\(([^)]+)\)/i);
+        const pkMatch = definition.match(/PRIMARY\s+KEY\s*\(([^)]+)\)/i);
         if (pkMatch) {
           const pkColumns = pkMatch[1].split(',').map(col => col.trim().replace(/[`"']/g, ''));
           primaryKeys.push(...pkColumns);
@@ -68,20 +110,8 @@ const parseCreateTable = (sql) => {
           continue;
         }
         
-        // Special case for inline primary key
-        if (line.toUpperCase().includes('PRIMARY KEY')) {
-          const inlinePkMatch = line.match(/([^\s,]+)\s+[^\s,]+.*?PRIMARY\s+KEY/i);
-          if (inlinePkMatch && inlinePkMatch[1]) {
-            const pkColumn = inlinePkMatch[1].trim().replace(/[`"']/g, '');
-            if (!primaryKeys.includes(pkColumn)) {
-              primaryKeys.push(pkColumn);
-              console.log(`Found inline primary key in ${tableName}: ${pkColumn}`);
-            }
-          }
-        }
-        
-        // Check if this is a foreign key constraint - more permissive regex
-        const fkMatch = line.match(/.*FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+([^\s(]+)(?:\s*\(([^)]+)\))?/i);
+        // Check if this is a foreign key constraint
+        const fkMatch = definition.match(/FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+([^\s(]+)(?:\s*\(([^)]+)\))?/i);
         if (fkMatch) {
           const fkColumn = fkMatch[1].trim().replace(/[`"']/g, '');
           const refTable = fkMatch[2].trim().replace(/[`"']/g, '');
@@ -89,7 +119,8 @@ const parseCreateTable = (sql) => {
           
           console.log(`Found FK: ${tableName}.${fkColumn} -> ${refTable}.${refColumn}`);
           
-          foreignKeys.push({
+          // Add to foreign keys
+          table.foreignKeys.push({
             column: fkColumn,
             refTable: refTable,
             refColumn: refColumn
@@ -98,44 +129,74 @@ const parseCreateTable = (sql) => {
           continue;
         }
         
-        // This should be a column definition
-        const columnMatch = line.match(/^[`"']?([^\s`"']+)[`"']?\s+([^\s(]+)(?:\([^)]*\))?(.*)$/i);
+        // Check if this is a constraint definition
+        if (definition.toUpperCase().startsWith('CONSTRAINT')) {
+          continue;
+        }
+        
+        // Extract column name and data type
+        // This regex matches: column_name data_type(params) [constraints]
+        const columnRegex = /^\s*([^\s]+)\s+([^\s]+(?:\s*\([^)]*\))?)\s*(.*)?$/i;
+        const columnMatch = definition.match(columnRegex);
+        
         if (columnMatch) {
-          const columnName = columnMatch[1].trim();
-          const columnType = columnMatch[2].trim();
-          const constraints = columnMatch[3] || '';
+          const columnName = columnMatch[1].trim().replace(/[`"']/g, '');
+          let columnType = columnMatch[2].trim();
+          const constraints = columnMatch[3] ? columnMatch[3].trim() : '';
           
-          console.log(`Found column: ${columnName}, type: ${columnType}`);
+          // Skip if this is a constraint line
+          if (columnName.toUpperCase() === 'CONSTRAINT' || 
+              columnName.toUpperCase() === 'PRIMARY' || 
+              columnName.toUpperCase() === 'FOREIGN') {
+            continue;
+          }
+          
+          // Normalize data type
+          if (columnType.toUpperCase().startsWith('TEXT')) {
+            const sizeMatch = columnType.match(/TEXT\s*\(([^)]+)\)/);
+            columnType = sizeMatch ? `TEXT(${sizeMatch[1]})` : 'TEXT';
+          } else if (columnType.toUpperCase() === 'TIMESTAMP_NTZ') {
+            columnType = 'TIMESTAMP';
+          } else if (columnType.toUpperCase().startsWith('NUMBER')) {
+            const precisionMatch = columnType.match(/NUMBER\s*\(([^)]+)\)/);
+            columnType = precisionMatch ? `NUMBER(${precisionMatch[1]})` : 'NUMBER';
+          } else if (columnType.includes('(')) {
+            const typeBase = columnType.split('(')[0].trim();
+            const paramMatch = columnType.match(/\(([^)]+)\)/);
+            columnType = paramMatch ? `${typeBase}(${paramMatch[1]})` : typeBase;
+          }
           
           // Check if this column is a primary key
-          const isPrimaryKey = /PRIMARY\s+KEY/i.test(constraints) || primaryKeys.includes(columnName);
+          const isPrimaryKey = primaryKeys.includes(columnName) || 
+                              constraints.toUpperCase().includes('PRIMARY KEY');
+          
           if (isPrimaryKey && !primaryKeys.includes(columnName)) {
             primaryKeys.push(columnName);
           }
           
-          // Check if this column has a foreign key reference
-          const inlineFKMatch = constraints.match(/REFERENCES\s+([^\s(,]+)(?:\s*\(([^)]+)\))?/i);
-          let isForeignKey = false;
+          // Check if this column is a foreign key
+          const isForeignKey = constraints.toUpperCase().includes('REFERENCES');
           let refTable = null;
           let refColumn = null;
           
-          console.log(`Checking for FK in constraints: ${constraints}`);
-          
-          if (inlineFKMatch) {
-            isForeignKey = true;
-            refTable = inlineFKMatch[1].trim().replace(/[`"']/g, '');
-            refColumn = inlineFKMatch[2] ? inlineFKMatch[2].trim().replace(/[`"']/g, '') : 'id';
-            
-            console.log(`Found inline FK: ${columnName} -> ${refTable}.${refColumn}`);
-            
-            foreignKeys.push({
-              column: columnName,
-              refTable: refTable,
-              refColumn: refColumn
-            });
+          if (isForeignKey) {
+            const refMatch = constraints.match(/REFERENCES\s+([^\s(]+)(?:\s*\(([^)]+)\))?/i);
+            if (refMatch) {
+              refTable = refMatch[1].trim().replace(/[`"']/g, '');
+              refColumn = refMatch[2] ? refMatch[2].trim().replace(/[`"']/g, '') : 'id';
+              
+              // Add to foreign keys
+              table.foreignKeys.push({
+                column: columnName,
+                refTable: refTable,
+                refColumn: refColumn
+              });
+            }
           }
           
-          // Add the column
+          console.log(`Found column: ${columnName} (${columnType}) isPK: ${isPrimaryKey} isFK: ${isForeignKey}`);
+          
+          // Add column to the list
           columns.push({
             name: columnName,
             type: columnType,
@@ -144,6 +205,8 @@ const parseCreateTable = (sql) => {
             refTable: refTable,
             refColumn: refColumn
           });
+        } else {
+          console.warn(`Could not parse column definition: ${definition}`);
         }
       }
       
@@ -215,20 +278,83 @@ const parseCreateTable = (sql) => {
         }
       }
       
-      // Special case for orders table with customer_id foreign key
-      if (tableName === 'orders' && tableMap['customers']) {
-        // Check if there's a customer_id column in orders
-        const customerIdColumn = table.columns.find(col => col.name === 'customer_id');
-        if (customerIdColumn) {
-          console.log('Found customer_id in orders table - adding explicit relationship');
-          relationships.push({
-            id: `orders_customer_id_to_customers_customer_id`,
-            sourceTable: 'orders',
-            sourceColumn: 'customer_id',
-            targetTable: 'customers',
-            targetColumn: 'customer_id',
-            relationship: '1:N'
-          });
+      // Look for foreign key relationships in column names
+      for (const column of table.columns) {
+        if (column.name.toLowerCase().endsWith('_id')) {
+          // Extract potential table name from column name
+          const potentialTableName = column.name.toLowerCase().replace(/_id$/, '');
+          
+          // Check if we have a table with this name
+          const targetTable = Object.values(tableMap).find(t => 
+            t.name.toLowerCase() === potentialTableName ||
+            t.name.toLowerCase() === potentialTableName + 's' // Handle singular/plural
+          );
+          
+          if (targetTable) {
+            // Find the primary key of the target table
+            const targetPk = targetTable.primaryKeys.length > 0 ? 
+              targetTable.primaryKeys[0] : 
+              targetTable.columns.length > 0 ? targetTable.columns[0].name : 'id';
+            
+            console.log(`Found potential FK by naming convention: ${tableName}.${column.name} -> ${targetTable.name}.${targetPk}`);
+            
+            // Add foreign key relationship
+            const fk = {
+              column: column.name,
+              refTable: targetTable.name,
+              refColumn: targetPk
+            };
+            
+            // Add to foreign keys if not already present
+            if (!table.foreignKeys.some(existingFk => 
+              existingFk.column === fk.column && 
+              existingFk.refTable === fk.refTable)) {
+              table.foreignKeys.push(fk);
+              column.foreignKey = true;
+              column.refTable = targetTable.name;
+              column.refColumn = targetPk;
+            }
+          }
+        }
+      }
+      
+      // Look for suggested foreign key relationships in comments
+      const fkCommentRegex = /ALTER\s+TABLE\s+([^\s.]+(?:\.[^\s.]+){0,2})\s+ADD\s+CONSTRAINT\s+[^\s]+\s+FOREIGN\s+KEY\s*\(([^)]+)\)\s+REFERENCES\s+([^\s.]+(?:\.[^\s.]+){0,2})\s*\(([^)]+)\)/gi;
+      let fkCommentMatch;
+      
+      while ((fkCommentMatch = fkCommentRegex.exec(sql)) !== null) {
+        const sourceFullName = fkCommentMatch[1].trim();
+        const sourceColumn = fkCommentMatch[2].trim();
+        const targetFullName = fkCommentMatch[3].trim();
+        const targetColumn = fkCommentMatch[4].trim();
+        
+        // Extract simple table names
+        const sourceTableName = sourceFullName.split('.').pop();
+        const targetTableName = targetFullName.split('.').pop();
+        
+        if (sourceTableName === tableName) {
+          console.log(`Found suggested FK in comments: ${sourceTableName}.${sourceColumn} -> ${targetTableName}.${targetColumn}`);
+          
+          // Add to foreign keys if not already present
+          const fk = {
+            column: sourceColumn,
+            refTable: targetTableName,
+            refColumn: targetColumn
+          };
+          
+          if (!table.foreignKeys.some(existingFk => 
+            existingFk.column === fk.column && 
+            existingFk.refTable === fk.refTable)) {
+            table.foreignKeys.push(fk);
+            
+            // Update column if it exists
+            const columnToUpdate = table.columns.find(col => col.name === sourceColumn);
+            if (columnToUpdate) {
+              columnToUpdate.foreignKey = true;
+              columnToUpdate.refTable = targetTableName;
+              columnToUpdate.refColumn = targetColumn;
+            }
+          }
         }
       }
       
@@ -258,9 +384,10 @@ const parseSQLToMermaid = (sql) => {
     // Log the original SQL
     console.log('Original SQL:', sql);
     
-    // Clean up SQL: remove comments and normalize
-    sql = sql.replace(/--.*?\n/g, '\n')
-             .replace(/\n\s*\n/g, '\n') // Remove empty lines
+    // We'll use the SQL directly for parsing
+    
+    // Clean up SQL for parsing but keep comments for later
+    sql = sql.replace(/\n\s*\n/g, '\n') // Remove empty lines
              .trim();
     
     console.log('Parsing SQL...');
@@ -276,6 +403,7 @@ const parseSQLToMermaid = (sql) => {
     
     // Add tables and columns
     tables.forEach(table => {
+      // Use the table name in the diagram
       mermaidCode += `    ${table.name} {\n`;
       table.columns.forEach(col => {
         const pk = col.primaryKey ? 'PK ' : '';
@@ -309,21 +437,19 @@ const parseSQLToMermaid = (sql) => {
       
       // Last resort: Check for common foreign key naming patterns
       for (const table of tables) {
-        if (table.name !== 'customers') { // Skip the main table
-          for (const column of table.columns) {
-            // Check if column name ends with _id and matches a table name + _id
-            const potentialTableName = column.name.replace(/_id$/, '');
-            if (column.name.endsWith('_id') && tablesMap[potentialTableName]) {
-              console.log(`Found potential FK by naming convention: ${table.name}.${column.name} -> ${potentialTableName}.id`);
-              relationships.push({
-                id: `${table.name}_${column.name}_to_${potentialTableName}_id`,
-                sourceTable: table.name,
-                sourceColumn: column.name,
-                targetTable: potentialTableName,
-                targetColumn: 'id',
-                relationship: '1:N'
-              });
-            }
+        for (const column of table.columns) {
+          // Check if column name ends with _id and matches a table name + _id
+          const potentialTableName = column.name.replace(/_id$/, '');
+          if (column.name.endsWith('_id') && tablesMap[potentialTableName]) {
+            console.log(`Found potential FK by naming convention: ${table.name}.${column.name} -> ${potentialTableName}.id`);
+            relationships.push({
+              id: `${table.name}_${column.name}_to_${potentialTableName}_id`,
+              sourceTable: table.name,
+              sourceColumn: column.name,
+              targetTable: potentialTableName,
+              targetColumn: 'id',
+              relationship: '1:N'
+            });
           }
         }
       }
